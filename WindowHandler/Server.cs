@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -7,16 +8,19 @@ namespace WindowServer
 {
     public class Server
     {
-        private const int Port = 12345;
+        private readonly int          _port;
+        private readonly Thread       _listenThread;
+        private readonly List<Client> _clients;
 
-        private TcpListener _server;
-        private Thread      _listenThread;
-        private Client      _client;
-        private bool        _isShuttingDown;
+        private TcpListener           _server;
+        private bool                  _isShuttingDown;
 
-        public Server()
+        public Server(int port = 12345)
         {
             _isShuttingDown = false;
+            _port           = port;
+            _listenThread   = new Thread(Listen);
+            _clients        = new List<Client>();
         }
 
         public bool Start()
@@ -24,7 +28,7 @@ namespace WindowServer
             try
             {
                 var ip  = IPAddress.Parse("0.0.0.0");
-                _server = new TcpListener(ip, Port);
+                _server = new TcpListener(ip, _port);
             }
             catch (Exception e)
             {
@@ -33,7 +37,8 @@ namespace WindowServer
                 return false;
             }
 
-            StartListen();
+            _listenThread.Start();
+
             return true;
         }
 
@@ -42,18 +47,12 @@ namespace WindowServer
             try
             {
                 _server.Stop();
-                _client.Stop();
                 _isShuttingDown = true;
+                StopAllClients();
             }
             catch (Exception)
             {
             }
-        }
-
-        private void StartListen()
-        {
-            _listenThread = new Thread(Listen);
-            _listenThread.Start();
         }
 
         /// <summary>
@@ -69,7 +68,7 @@ namespace WindowServer
                 {
                     if (_server.Pending())
                     {
-                        _client = new Client(_server.AcceptTcpClient());
+                        _clients.Add(new Client(_server.AcceptTcpClient()));
                     }
                 }
                 catch (Exception)
@@ -79,6 +78,14 @@ namespace WindowServer
             }
 
             _server.Stop();
+        }
+
+        private void StopAllClients()
+        {
+            foreach (var client in _clients)
+            {
+                client.Stop();
+            }
         }
     }
 }
