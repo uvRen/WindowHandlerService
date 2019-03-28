@@ -69,6 +69,7 @@ namespace WindowServer
                     if (_server.Pending())
                     {
                         _clients.Add(new Client(_server.AcceptTcpClient()));
+                        Console.WriteLine("Client connected");
                     }
                 }
                 catch (Exception)

@@ -1,4 +1,5 @@
-﻿using ApiCommon.WindowHandling;
+﻿using System;
+using ApiCommon.WindowHandling;
 using System.Diagnostics;
 using System.IO;
 
@@ -6,7 +7,8 @@ namespace WindowServer
 {
     public class WindowHandler
     {
-        private string               _windowId;
+        private string                _machineWindowId;
+        private string                _ioSimWindowId;
         private readonly StreamWriter _output;
         private readonly StreamReader _input;
 
@@ -30,44 +32,110 @@ namespace WindowServer
             _output.WriteLine("export XAUTHORITY=/home/ubuntu/.Xauthority");
         }
 
-        public void FindWindow(string windowName)
+        public bool FindWindow(string windowName, bool ioSim)
         {
-            var command = $"xdotool search --screen 0 --onlyvisible --class {windowName}";
+            Console.WriteLine("Searching window for window: " + windowName);
+            var command = $@"xdotool search --screen 0 --onlyvisible --name ""{windowName}""";
+            
             _output.WriteLine(command);
 
             var windowId = _input.ReadLine();
+            Console.WriteLine("Found Window: " + windowId);
 
             if (!string.IsNullOrEmpty(windowId))
             {
-                _windowId = windowId;
+                if (!ioSim)
+                {
+                    _machineWindowId = windowId;
+                }
+                else
+                {
+                    _ioSimWindowId = windowId;
+                }
+
+                return true;
             }
+
+            return false;
         }
 
-        public void MoveWindow(Position position)
+        public bool MoveWindow(Position position, bool ioSim)
         {
-            if (_windowId == null)
-                return;
+            Console.WriteLine("Moving window");
 
-            var command = $"xdotool windowmove {_windowId} {position.X} {position.Y}";
+            var windowId = ioSim
+                ? _ioSimWindowId
+                : _machineWindowId;
+
+            if (string.IsNullOrEmpty(windowId))
+                return false;
+
+            var command = $"xdotool windowmove {windowId} {position.X} {position.Y}";
             _output.WriteLine(command);
+
+            Console.WriteLine("Window with ID " + windowId + " moved");
+
+            return true;
         }
 
-        public void MouseClick(Position position)
+        public bool MouseClick(Position position, bool ioSim)
         {
-            if (_windowId == null)
-                return;
+            var windowId = ioSim
+                ? _ioSimWindowId
+                : _machineWindowId;
 
-            var command = $"xdotool mousemove --window {_windowId} {position.X} {position.Y} click 1";
+            if (string.IsNullOrEmpty(windowId))
+                return false;
+
+            var command = $"xdotool windowactivate --sync {windowId} mousemove --window {windowId} {position.X} {position.Y} click 1 sleep 1";
             _output.WriteLine(command);
+
+            return true;
         }
 
-        public void KeyPress(string key)
+        public bool MouseDown(Position position, bool ioSim)
         {
-            if (_windowId == null)
-                return;
+            var windowId = ioSim
+                ? _ioSimWindowId
+                : _machineWindowId;
 
-            var command = $"xdotool key --window {_windowId} {key}";
+            if (string.IsNullOrEmpty(windowId))
+                return false;
+
+            var command = $"xdotool windowactivate --sync {windowId} mousemove --window {windowId} {position.X} {position.Y} mousedown 1 sleep 1";
             _output.WriteLine(command);
+
+            return true;
+        }
+
+        public bool MouseUp(Position position, bool ioSim)
+        {
+            var windowId = ioSim
+                ? _ioSimWindowId
+                : _machineWindowId;
+
+            if (string.IsNullOrEmpty(windowId))
+                return false;
+
+            var command = $"xdotool windowactivate --sync {windowId} mousemove --window {windowId} {position.X} {position.Y} mouseup 1 sleep 1";
+            _output.WriteLine(command);
+
+            return true;
+        }
+
+        public bool KeyPress(string key, bool ioSim)
+        {
+            var windowId = ioSim
+                ? _ioSimWindowId
+                : _machineWindowId;
+
+            if (string.IsNullOrEmpty(windowId))
+                return false;
+
+            var command = $"xdotool windowactivate --sync {windowId} key --window {windowId} {key}";
+            _output.WriteLine(command);
+
+            return true;
         }
 
     }
